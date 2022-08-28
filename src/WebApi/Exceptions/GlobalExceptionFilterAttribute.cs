@@ -6,16 +6,16 @@ using Microsoft.AspNetCore.Mvc.Filters;
 namespace WebApi.Exceptions;
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
-public class GlobalExceptionFilterAttribute : IExceptionFilter
+public class GlobalExceptionFilterAttribute : ExceptionFilterAttribute
 {
-    private readonly ILogger<GlobalExceptionFilterAttribute> _logger;
+    private readonly  ILogger<GlobalExceptionFilterAttribute> _logger;
 
     public GlobalExceptionFilterAttribute(ILogger<GlobalExceptionFilterAttribute> logger)
     {
         _logger = logger;
     }
 
-    public void OnException(ExceptionContext context)
+    public override void OnException(ExceptionContext context)
     {
         if (context.ExceptionHandled is false)
         {

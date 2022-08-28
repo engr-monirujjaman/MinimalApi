@@ -1,10 +1,12 @@
 using FluentValidation;
-using FluentValidation.AspNetCore;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi.Models;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using WebApi.Extensions;
+using WebApi.PipelineBehaviors;
+using WebApi.Requests;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +31,17 @@ builder.Services.AddSingleton(Log.Logger);
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Fluent Validation Config End
+
+// Mediator Config Start
+
+builder.Services.AddMediatR(x => x.AsScoped(), typeof(Program));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehaviour<,>));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+// builder.Services.AddTransient(typeof(AsyncRequestExceptionHandler<,>), typeof(CommonExceptionHandler<,>));
+// builder.Services.AddTransient(typeof(IRequestPostProcessor<,>), typeof(RequestPostProcessorBehaviour<,>));
+// builder.Services.AddTransient(typeof(IRequestPreProcessor<>), typeof(RequestPreProcessorBehaviour<>));
+
+// Mediator Config End
 
 // Swagger Services Config Start
 
@@ -77,10 +90,14 @@ app.UseSwaggerUI(c => c.SwaggerEndpoint("v1/swagger.json", "Minimal Api V1"));
 
 // Add Swagger Middlewares End
 
-// Config Global Exception Handler
+// Config Global Exception Handler Start
 
 app.ConfigureGlobalExceptionHandler(Log.Logger);
 
-app.MapGet("/", () => "Hello World!");
+// Config Global Exception Handler End
+
+app.UseSerilogRequestLogging();
+
+app.MediateGet<ExampleRequest>("example/{name}");
 
 app.Run();
