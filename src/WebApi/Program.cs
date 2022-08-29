@@ -36,7 +36,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddMediatR(x => x.AsScoped(), typeof(Program));
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehaviour<,>));
-builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+// builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 // builder.Services.AddTransient(typeof(AsyncRequestExceptionHandler<,>), typeof(CommonExceptionHandler<,>));
 // builder.Services.AddTransient(typeof(IRequestPostProcessor<,>), typeof(RequestPostProcessorBehaviour<,>));
 // builder.Services.AddTransient(typeof(IRequestPreProcessor<>), typeof(RequestPreProcessorBehaviour<>));
@@ -48,6 +48,8 @@ builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBeh
 // Configure Global Exception Filter 
 // TODO committed because use minimal api
 // builder.Services.AddControllers(configure => configure.Filters.Add(typeof(GlobalExceptionFilterAttribute)));
+
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -92,11 +94,11 @@ app.UseSwaggerUI(c => c.SwaggerEndpoint("v1/swagger.json", "Minimal Api V1"));
 
 // Config Global Exception Handler Start
 
-app.ConfigureGlobalExceptionHandler(Log.Logger);
+// app.ConfigureGlobalExceptionHandler();
 
 // Config Global Exception Handler End
 
-app.UseSerilogRequestLogging();
+// app.UseSerilogRequestLogging();
 
 app.MediateGet<ExampleRequest>("example/{name}");
 

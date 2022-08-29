@@ -1,14 +1,12 @@
 ﻿using System.Net;
-using System.Text.Json;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
 
 namespace WebApi.Extensions;
 
 public static class GlobalExceptionHandlerExtensions
 {
-    public static void ConfigureGlobalExceptionHandler(this IApplicationBuilder app, Serilog.ILogger logger)
+    public static void ConfigureGlobalExceptionHandler(this IApplicationBuilder app)
     {
         app.UseExceptionHandler(configure =>
         {
@@ -23,29 +21,36 @@ public static class GlobalExceptionHandlerExtensions
                 {
                     context.Response.StatusCode = contextFeature.Error switch
                     {
-                        UnauthorizedAccessException => (int) HttpStatusCode.Unauthorized,
-                        InvalidOperationException => (int) HttpStatusCode.BadRequest,
-                        ValidationException => (int) HttpStatusCode.BadRequest,
+                        UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
+                        ValidationException => StatusCodes.Status400BadRequest,
                         _ => (int) HttpStatusCode.InternalServerError
                     };
 
-                    logger.Error("Something went wrong: {ContextFeatureError}", contextFeature.Error.Message);
+                    Log.Error("Something went wrong: {ContextFeatureError}", contextFeature.Error.Message);
 
-                    await context.Response.WriteAsync(
-                        JsonSerializer.Serialize(
-                            new
-                            {
-                                context.Response.StatusCode,
-                                Message = contextFeature.Error switch
-                                {
-                                    UnauthorizedAccessException => "Unauthorized Access Exception",
-                                    InvalidOperationException => "Invalid Operation Exception",
-                                    ValidationException exception => new JsonResult(exception.Errors).Value,
-                                    _ => "Internal Server Error"
-                                }
-                            }));
+                    await context.Response.WriteAsJsonAsync( contextFeature.Error switch
+                    {
+                        UnauthorizedAccessException => Results.Fail(StatusCodes.Status401Unauthorized, new [] {"Unauthorized User, Please Try Again Later After Login."}),
+                        ValidationException exception => Results.Fail(exception.Errors),
+                        _ => Results.Fail(StatusCodes.Status500InternalServerError, new [] {"Internal Server Error, Please Try Again Later."})
+                    });
                 }
             });
         });
     }
+
+    // private static IResult PrepareResponse(IExceptionHandlerFeature exceptionFeature) => exceptionFeature.Error switch
+    // {
+    //     UnauthorizedAccessException => Results.Unauthorized(),
+    //     _ => Results.BadRequest()
+    // };
+    //
+    // private static IEnumerable<object> GetErrorMessages(IEnumerable<ValidationFailure> validationFailures)
+    // {
+    //     var a = validationFailures.GroupBy(x => x.PropertyName)
+    //         .ToDictionary(x => x.Key, x => x.Select(e => e.ErrorMessage));
+    //
+    //     return ;
+    // }
 }
+
