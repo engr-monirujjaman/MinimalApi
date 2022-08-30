@@ -8,6 +8,9 @@ public static class Results
     public static IResult Fail() =>
         new Result<object?>(StatusCodes.Status400BadRequest, default, Enumerable.Empty<string>());
     
+    public static IResult Fail(IEnumerable<string>  errors) =>
+        new Result<object?>(StatusCodes.Status400BadRequest, default, errors);
+    
     public static IResult Fail(int statusCode, IEnumerable<string>  errors) =>
         new Result<object?>(statusCode, default, errors);
     
@@ -21,7 +24,7 @@ public static class Results
         new Result<object?>(StatusCodes.Status400BadRequest, default, errors.Select(x => x.ErrorMessage));
     
     public static IResult Success() =>
-        new Result<object?>(StatusCodes.Status400BadRequest, default, Enumerable.Empty<string>());
+        new Result<object?>(StatusCodes.Status200OK, default, Enumerable.Empty<string>());
     
     public static IResult Success(int statusCode) =>
         new Result<object?>(statusCode, default, Enumerable.Empty<string>());    

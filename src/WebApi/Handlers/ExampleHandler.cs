@@ -1,10 +1,9 @@
-﻿using MediatR;
-using WebApi.Dtos;
+﻿using WebApi.Dtos;
 using WebApi.Requests;
 
 namespace WebApi.Handlers;
 
-public class ExampleHandler : IRequestHandler<ExampleRequest, IResult>
+public class ExampleHandler : IHttpRequestHandler<ExampleRequest>
 {
     public Task<IResult> Handle(ExampleRequest request, CancellationToken cancellationToken)
     {

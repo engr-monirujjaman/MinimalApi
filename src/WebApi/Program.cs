@@ -1,12 +1,22 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Net;
+using System.Text;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
+using WebApi.Data;
+using WebApi.Endpoints;
 using WebApi.Extensions;
 using WebApi.PipelineBehaviors;
 using WebApi.Requests;
+using JwtConstants = WebApi.Settings.JwtConstants;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +35,60 @@ builder.Host.UseSerilog(Log.Logger);
 builder.Services.AddSingleton(Log.Logger);
 
 // Config Serilog End
+
+// Identity DbContext Config Start
+
+builder.Services.AddDbContext<AppDbContext>(config => { config.UseInMemoryDatabase("IdentityServerMemory"); });
+
+builder.Services.AddIdentity<IdentityUser, IdentityRole>(config =>
+    {
+        config.Password.RequireDigit = false;
+        config.Password.RequiredLength = 4;
+        config.Password.RequireNonAlphanumeric = false;
+        config.Password.RequireUppercase = false;
+    }).AddUserManager<UserManager<IdentityUser>>()
+    .AddSignInManager<SignInManager<IdentityUser>>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var key = Encoding.UTF8.GetBytes(JwtConstants.Key);
+        options.SaveToken = true;
+        options.RequireHttpsMetadata = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = JwtConstants.Issuer,
+            ValidAudience = JwtConstants.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(key)
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Headers.Append("my-custom-header", "custom-value");
+                await context.Response.WriteAsync(Results
+                    .Fail(StatusCodes.Status401Unauthorized, new[] {"You are not authorized"}).ToJson());
+            }
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+        .RequireAuthenticatedUser()
+        .Build();
+});
+
+// Identity DbContext Config End
 
 // Fluent Validation Config Start
 
@@ -83,10 +147,7 @@ var app = builder.Build();
 
 // Add Swagger Middlewares Start
 
-app.UseSwagger(options =>
-{
-    options.RouteTemplate = "swagger/{documentName}/swagger.json";
-});
+app.UseSwagger(options => { options.RouteTemplate = "swagger/{documentName}/swagger.json"; });
 
 app.UseSwaggerUI(c => c.SwaggerEndpoint("v1/swagger.json", "Minimal Api V1"));
 
@@ -94,12 +155,32 @@ app.UseSwaggerUI(c => c.SwaggerEndpoint("v1/swagger.json", "Minimal Api V1"));
 
 // Config Global Exception Handler Start
 
-// app.ConfigureGlobalExceptionHandler();
+app.ConfigureGlobalExceptionHandler();
 
 // Config Global Exception Handler End
 
 // app.UseSerilogRequestLogging();
 
+// app.Use(async (context, next) =>
+// {
+//     await next();
+//     
+//     if (context.Response.StatusCode == (int)HttpStatusCode.Unauthorized) // 401
+//     {
+//         context.Response.ContentType = "application/json";
+//         await context.Response.WriteAsync(new
+//         {
+//             StatusCode = 401,
+//             Message = "Token is not valid"
+//         }.ToJson());
+//     }
+// });
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MediateGet<ExampleRequest>("example/{name}");
+app.MediateGet<SecretRequest>("secret/fullName");
+app.MapCustomerEndpoints();
 
 app.Run();

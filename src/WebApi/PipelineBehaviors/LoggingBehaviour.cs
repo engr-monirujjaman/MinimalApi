@@ -58,6 +58,7 @@ public class LoggingBehaviour<TRequest, TResponse> : IPipelineBehavior<TRequest,
             }
 
             response = await next();
+            _httpContext.Response.StatusCode = response.StatusCode;
             _logger.LogInformation("Handled Response: {NewLine}{Response}", Environment.NewLine, response.ToJson());
         }
         catch (Exception e)
